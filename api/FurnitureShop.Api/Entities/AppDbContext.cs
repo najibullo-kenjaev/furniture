@@ -1,8 +1,7 @@
-﻿using FurnitureShop.Api.Entities;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 
 
-namespace FurnitureShop.Api.Data
+namespace FurnitureShop.Api.Entities
 {
     public class AppDbContext : DbContext
     {
@@ -19,16 +18,6 @@ namespace FurnitureShop.Api.Data
         {
             modelBuilder.Entity<Category>().HasIndex(c => c.Slug).IsUnique();
             modelBuilder.Entity<Product>().HasIndex(p => p.Slug).IsUnique();
-
-            // Сидинг администратора
-            var admin = new User
-            {
-                Id = Guid.NewGuid(),
-                Email = "admin@ad.com",
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword("Admin@123"),
-                Role = "Admin"
-            };
-            modelBuilder.Entity<User>().HasData(admin);
         }
     }
 }

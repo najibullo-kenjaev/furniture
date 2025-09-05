@@ -5,9 +5,7 @@
 public class FilesController : ControllerBase
 {
     private readonly IWebHostEnvironment _env;
-    private readonly ImageService _imageService;
-    public FilesController(IWebHostEnvironment env, ImageService imageService) { _env = env; _imageService = imageService; }
-
+    public FilesController(IWebHostEnvironment env) { _env = env; }
 
     [HttpPost("product/{productId}")]
     public async Task<IActionResult> UploadProductImages(Guid productId, List<IFormFile> files)
@@ -30,12 +28,6 @@ public class FilesController : ControllerBase
             using var ms = new MemoryStream();
             await f.CopyToAsync(ms);
             ms.Position = 0;
-            await _imageService.SaveResizedAsync(ms, fullLarge, 1600);
-            ms.Position = 0;
-            await _imageService.SaveResizedAsync(ms, fullMedium, 800);
-            ms.Position = 0;
-            await _imageService.SaveResizedAsync(ms, fullThumb, 400);
-
 
             saved.Add(new { file = fname });
         }

@@ -1,4 +1,4 @@
-﻿using FurnitureShop.Api.Data;
+﻿using FurnitureShop.Api.Dtos;
 using FurnitureShop.Api.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -11,33 +11,97 @@ namespace FurnitureShop.Controllers
     {
         private readonly AppDbContext _context;
         private readonly IWebHostEnvironment _env;
-        private readonly ImageService _imageService;
 
-        public ProductsController(AppDbContext context, IWebHostEnvironment env, ImageService imageService)
+        public ProductsController(AppDbContext context, IWebHostEnvironment env)
         {
             _context = context;
             _env = env;
-            _imageService = imageService;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll()
         {
             var products = await _context.Products.ToListAsync();
-            return Ok(products);
+
+            var result = products.Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Slug,
+                p.Price,
+                p.ShortDescription,
+                p.FullDescription,
+                p.WidthCm,
+                p.DepthCm,
+                p.HeightCm,
+                p.Materials,
+                p.IsActive,
+                p.CreatedAt,
+                p.CategoryId,
+                Images = GetProductImages(p.Id)
+            });
+
+            return Ok(result);
         }
 
         [HttpGet("{id}")]
-        public async Task<IActionResult> Get(int id)
+        public async Task<IActionResult> GetById(Guid id)
         {
             var product = await _context.Products.FindAsync(id);
             if (product == null) return NotFound();
-            return Ok(product);
+
+            var result = new
+            {
+                product.Id,
+                product.Name,
+                product.Slug,
+                product.Price,
+                product.ShortDescription,
+                product.FullDescription,
+                product.WidthCm,
+                product.DepthCm,
+                product.HeightCm,
+                product.Materials,
+                product.IsActive,
+                product.CreatedAt,
+                product.CategoryId,
+                Images = GetProductImages(product.Id)
+            };
+
+            return Ok(result);
+        }
+
+        private List<string> GetProductImages(Guid productId)
+        {
+            var root = Path.Combine(_env.ContentRootPath, "uploads", "products", productId.ToString());
+            if (!Directory.Exists(root)) return new List<string>();
+
+            var files = Directory.GetFiles(root);
+            var baseUrl = $"{Request.Scheme}://{Request.Host}/uploads/products/{productId}/";
+
+            return files
+                .Select(f => baseUrl + Path.GetFileName(f))
+                .ToList();
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromForm] Product product, List<IFormFile> images)
+        public async Task<IActionResult> Create([FromForm] CreateProductDto createProductDto, List<IFormFile> images)
         {
+            var product = new Product
+            {
+                Name = createProductDto.Name,
+                Slug = createProductDto.Slug,
+                Price = createProductDto.Price,
+                ShortDescription = createProductDto.ShortDescription,
+                FullDescription = createProductDto.FullDescription,
+                WidthCm = createProductDto.WidthCm,
+                DepthCm = createProductDto.DepthCm,
+                HeightCm = createProductDto.HeightCm,
+                Materials = createProductDto.Materials,
+                CategoryId = createProductDto.CategoryId,
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            };
             _context.Products.Add(product);
             await _context.SaveChangesAsync();
 
@@ -62,26 +126,25 @@ namespace FurnitureShop.Controllers
                 await f.CopyToAsync(fs);
             }
 
-            return CreatedAtAction(nameof(Get), new { id = product.Id }, product);
+            return CreatedAtAction(nameof(GetById), new { id = product.Id }, createProductDto);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromForm] Product productDto, List<IFormFile>? images)
+        public async Task<IActionResult> Update(int id, [FromForm] UpdateProductDto updateProductDto, List<IFormFile>? images)
         {
             var existing = await _context.Products.FindAsync(id);
             if (existing == null) return NotFound();
 
-            // обновляем свойства продукта
-            existing.Name = productDto.Name;
-            existing.Slug = productDto.Slug;
-            existing.Price = productDto.Price;
-            existing.ShortDescription = productDto.ShortDescription;
-            existing.FullDescription = productDto.FullDescription;
-            existing.WidthCm = productDto.WidthCm;
-            existing.DepthCm = productDto.DepthCm;
-            existing.HeightCm = productDto.HeightCm;
-            existing.Materials = productDto.Materials;
-            existing.CategoryId = productDto.CategoryId;
+            existing.Name = updateProductDto.Name;
+            existing.Slug = updateProductDto.Slug;
+            existing.Price = updateProductDto.Price;
+            existing.ShortDescription = updateProductDto.ShortDescription;
+            existing.FullDescription = updateProductDto.FullDescription;
+            existing.WidthCm = updateProductDto.WidthCm;
+            existing.DepthCm = updateProductDto.DepthCm;
+            existing.HeightCm = updateProductDto.HeightCm;
+            existing.Materials = updateProductDto.Materials;
+            existing.CategoryId = updateProductDto.CategoryId;
 
             await _context.SaveChangesAsync();
 

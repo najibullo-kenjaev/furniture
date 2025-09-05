@@ -1,12 +1,9 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using FurnitureShop.Api.Entities;
 
-
-namespace FurnitureShop.Api.Entities
+namespace FurnitureShop.Api.Dtos
 {
-    public class Product
+    public class CreateProductDto
     {
-        public Guid Id { get; set; } = Guid.NewGuid();
         public string Name { get; set; }
         public string Slug { get; set; }
         public decimal? Price { get; set; }
@@ -16,9 +13,12 @@ namespace FurnitureShop.Api.Entities
         public int? DepthCm { get; set; }
         public int? HeightCm { get; set; }
         public string Materials { get; set; }
-        public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public Guid CategoryId { get; set; }
-        public Category Category { get; set; }
+    }
+
+    public class UpdateProductDto : CreateProductDto
+    {
+        public Guid Id { get; set; }
+        public bool IsActive { get; set; }
     }
 }

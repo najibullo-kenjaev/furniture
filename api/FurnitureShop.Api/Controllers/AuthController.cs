@@ -1,4 +1,4 @@
-﻿using FurnitureShop.Api.Data;
+﻿using FurnitureShop.Api.Entities;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
