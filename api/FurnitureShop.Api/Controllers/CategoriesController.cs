@@ -1,4 +1,6 @@
-﻿using FurnitureShop.Api.Entities;
+﻿using FurnitureShop.Api.Dtos;
+using FurnitureShop.Api.Entities;
+using FurnitureShop.Api.Helper;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -19,36 +21,75 @@ namespace FurnitureShop.Controllers
         public async Task<IActionResult> GetAll()
         {
             var categories = await _context.Categories.ToListAsync();
-            return Ok(categories);
+
+            // сначала берем только "корневые" (без ParentId)
+            var rootCategories = categories
+                .Where(c => c.ParentId == null)
+                .Select(c => MapToTree(c, categories))
+                .ToList();
+
+            return Ok(rootCategories);
         }
 
-        [HttpGet("{id}")]
-        public async Task<IActionResult> Get(int id)
+        
+
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> Get(Guid id)
         {
-            var category = await _context.Categories.FindAsync(id);
+            var categories = await _context.Categories.ToListAsync();
+
+            var category = categories.FirstOrDefault(c => c.Id == id);
             if (category == null) return NotFound();
-            return Ok(category);
+
+            var result = MapToTree(category, categories);
+
+            return Ok(result);
+        }
+        private CategoryTreeDto MapToTree(Category category, List<Category> allCategories)
+        {
+            return new CategoryTreeDto
+            {
+                Id = category.Id,
+                Name = category.Name,
+                Slug = category.Slug,
+                IsActive = category.IsActive,
+                Children = allCategories
+                    .Where(c => c.ParentId == category.Id)
+                    .Select(c => MapToTree(c, allCategories))
+                    .ToList()
+            };
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] Category category)
+        public async Task<IActionResult> Create([FromBody] CreateCategoryDto categoryDto)
         {
+            var category = new Category
+            {
+                Name = categoryDto.Name,
+                Slug = SlugService.GenerateSlug(categoryDto.Name),
+                ParentId = categoryDto.ParentId
+            };
+
             _context.Categories.Add(category);
             await _context.SaveChangesAsync();
+
             return CreatedAtAction(nameof(Get), new { id = category.Id }, category);
         }
 
         [HttpPut("{id}")]
-        public async Task<IActionResult> Update(int id, [FromBody] Category category)
+        public async Task<IActionResult> Update(Guid id, [FromBody] UpdateCategoryDto categoryDto)
         {
-            var existing = await _context.Categories.FindAsync(id);
-            if (existing == null) return NotFound();
+            var category = await _context.Categories.FindAsync(id);
+            if (category == null) return NotFound();
 
-            existing.Name = category.Name;
-            existing.ParentId = category.ParentId;
+            category.Name = categoryDto.Name;
+            category.Slug = SlugService.GenerateSlug(categoryDto.Name); 
+            category.ParentId = categoryDto.ParentId;
+            category.IsActive = categoryDto.IsActive;
 
             await _context.SaveChangesAsync();
-            return NoContent();
+
+            return Ok(category);
         }
 
         [HttpDelete("{id}")]
