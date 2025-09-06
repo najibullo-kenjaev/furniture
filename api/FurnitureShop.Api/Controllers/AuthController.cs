@@ -6,40 +6,54 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 
-namespace FurnitureShop.Api.Controllers;
+public record LoginRequest(string Email, string Password);
+
 [ApiController]
-[Route("api/v1/auth")]
+[Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly AppDbContext _db;
-    private readonly IConfiguration _config;
-    public AuthController(AppDbContext db, IConfiguration config) { _db = db; _config = config; }
+    private readonly IConfiguration _cfg;
+    public AuthController(AppDbContext db, IConfiguration cfg)
+    {
+        _db = db;
+        _cfg = cfg;
+    }
 
     [HttpPost("login")]
-    public async Task<IActionResult> Login([FromBody] LoginDto dto)
+    public async Task<IActionResult> Login([FromBody] LoginRequest req)
     {
-        var user = await _db.Users.FirstOrDefaultAsync(u => u.Email == dto.Email && u.IsActive);
-        if (user == null) return Unauthorized("invalid_credentials");
+        var user = await _db.Users
+            .AsNoTracking()
+            .FirstOrDefaultAsync(u => u.Email == req.Email && u.IsActive);
 
-        // В реальном проекте сравнивать хэш
-        if (user.PasswordHash != dto.Password) return Unauthorized("invalid_credentials");
+        if (user == null || !Verify(req.Password, user.PasswordHash))
+            return Unauthorized("Invalid email or password");
 
+        var token = GenerateJwt(user);
+        return Ok(new { Token = token });
+    }
+
+    private string GenerateJwt(User u)
+    {
         var claims = new[]
         {
-            new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-            new Claim(JwtRegisteredClaimNames.Email, user.Email),
-            new Claim(ClaimTypes.Role, user.Role)
+            new Claim(ClaimTypes.NameIdentifier, u.Id.ToString()),
+            new Claim(ClaimTypes.Email, u.Email),
+            new Claim(ClaimTypes.Role, u.Role)
         };
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_config["Jwt:Key"]));
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_cfg["Jwt:Key"]));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-        var token = new JwtSecurityToken(
-            issuer: "furniture-shop",
-            audience: "furniture-shop",
+
+        var jwt = new JwtSecurityToken(
             claims: claims,
             expires: DateTime.UtcNow.AddDays(7),
-            signingCredentials: creds
-        );
-        var tokenStr = new JwtSecurityTokenHandler().WriteToken(token);
-        return Ok(new { token = tokenStr });
+            signingCredentials: creds);
+
+        return new JwtSecurityTokenHandler().WriteToken(jwt);
     }
+
+    private static bool Verify(string raw, string hash) =>
+        BCrypt.Net.BCrypt.Verify(raw, hash);
 }
