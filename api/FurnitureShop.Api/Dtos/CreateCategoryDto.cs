@@ -1,7 +1,7 @@
 ﻿public class CreateCategoryDto
 {
     public string Name { get; set; }
-    public Guid? ParentId { get; set; }
+    public string ParentId { get; set; } 
 }
 
 public class UpdateCategoryDto : CreateCategoryDto

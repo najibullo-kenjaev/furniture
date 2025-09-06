@@ -31,7 +31,7 @@ namespace FurnitureShop.Controllers
             return Ok(rootCategories);
         }
 
-        
+
 
         [HttpGet("{id:guid}")]
         public async Task<IActionResult> Get(Guid id)
@@ -63,11 +63,13 @@ namespace FurnitureShop.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] CreateCategoryDto categoryDto)
         {
+
+            Guid? parentId = string.IsNullOrEmpty(categoryDto.ParentId) ? null : Guid.Parse(categoryDto.ParentId);
             var category = new Category
             {
                 Name = categoryDto.Name,
                 Slug = SlugService.GenerateSlug(categoryDto.Name),
-                ParentId = categoryDto.ParentId
+                ParentId = parentId
             };
 
             _context.Categories.Add(category);
@@ -83,8 +85,8 @@ namespace FurnitureShop.Controllers
             if (category == null) return NotFound();
 
             category.Name = categoryDto.Name;
-            category.Slug = SlugService.GenerateSlug(categoryDto.Name); 
-            category.ParentId = categoryDto.ParentId;
+            category.Slug = SlugService.GenerateSlug(categoryDto.Name);
+            category.ParentId = Guid.Parse(categoryDto.ParentId);
             category.IsActive = categoryDto.IsActive;
 
             await _context.SaveChangesAsync();
@@ -93,7 +95,7 @@ namespace FurnitureShop.Controllers
         }
 
         [HttpDelete("{id}")]
-        public async Task<IActionResult> Delete(int id)
+        public async Task<IActionResult> Delete(Guid id)
         {
             var category = await _context.Categories.FindAsync(id);
             if (category == null) return NotFound();
